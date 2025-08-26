@@ -1,31 +1,59 @@
+## =====================================
+## CÁC LOẠI DỮ LIỆU
+## =====================================
+
 type Author {
     id: ID!
     name: String!
     birthYear: Int
     nationality: String
-    bookId: ID!
+    books: [Book!]!
 }
+
+input AuthorInput {
+    name: String!
+    birthYear: Int
+    nationality: String
+}
+
 type Book {
     id: ID!
     title: String!
     publishedYear: Int
-    price: Int
+    price: Float
     quantity: Int
-    authorId: ID!
+    author: Author
 }
-type Query{
+
+input BookInput {
+    title: String!
+    publishedYear: Int
+    price: Float
+    quantity: Int
+}
+
+## =====================================
+## CÁC TRUY VẤN (QUERIES)
+## =====================================
+
+type Query {
     getAllAuthors: [Author!]!
     getAuthorById(id: ID!): Author
 
     getAllBooks: [Book!]!
     getBookById(id: ID!): Book
 }
-type Mutation {
-    addAuthor(name: String!, birthYear: Int, nationality: String): Author
-    updateAuthor(id: ID!, name: String, birthYear: Int, nationality: String): Author
-    deleteAuthor(id: ID!): Boolean
 
-    addBook(title: String!, publishedYear: Int, price: Float, quantity: Int, authorId: ID!): Book
-    updateBook(id: ID!, title: String, publishedYear: Int, price: Float, quantity: Int, authorId: ID): Book
-    deleteBook(id: ID!): Boolean
+## =====================================
+## CÁC HÀNH ĐỘNG (MUTATIONS)
+## =====================================
+
+type Mutation {
+    addAuthor(input: AuthorInput!): Author!
+    updateAuthor(id: ID!, input: AuthorInput!): Author!
+    deleteAuthor(id: ID!): Boolean!
+
+    addBook(authorId: ID!, input: BookInput!): Book!
+    updateBook(id: ID!, authorId: ID, input: BookInput!): Book!
+    deleteBook(id: ID!): Boolean!
 }

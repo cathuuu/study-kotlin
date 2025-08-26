@@ -4,7 +4,7 @@ import jakarta.persistence.*
 
 @Entity
 @Table(name = "books")
-data class BookEntity (
+data class BookEntity(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null,
@@ -18,5 +18,7 @@ data class BookEntity (
 
     var quantity: Int? = null,
 
-    var authorId: Long? = null
+    @ManyToOne
+    @JoinColumn(name = "author_id")
+    var author: AuthorEntity? = null
 )
