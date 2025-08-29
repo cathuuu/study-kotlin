@@ -1,5 +1,6 @@
 package com.example.quan_ly_sach.controllers
 
+import com.example.quan_ly_sach.dtos.AuthorInput
 import com.example.quan_ly_sach.entities.AuthorEntity
 import com.example.quan_ly_sach.entities.BookEntity
 import com.example.quan_ly_sach.repositories.AuthorRepository
@@ -25,26 +26,29 @@ class AuthorController(
 
     // ================= MUTATIONS =================
     @MutationMapping
-    fun addAuthor(
-        @Argument name: String,
-        @Argument birthYear: Int?,
-        @Argument nationality: String?
-    ): AuthorEntity {
-        val author = AuthorEntity(name = name, birthYear = birthYear, nationality = nationality)
+    fun addAuthor(@Argument input: AuthorInput): AuthorEntity {
+        val author = AuthorEntity(
+            name = input.name,
+            birthYear = input.birthYear,
+            nationality = input.nationality
+        )
         return authorRepo.save(author)
     }
 
     @MutationMapping
     fun updateAuthor(
         @Argument id: Long,
-        @Argument name: String?,
-        @Argument birthYear: Int?,
-        @Argument nationality: String?
-    ): AuthorEntity? {
-        val author = authorRepo.findById(id).orElse(null) ?: return null
-        name?.let { author.name = it }
-        birthYear?.let { author.birthYear = it }
-        nationality?.let { author.nationality = it }
+        @Argument input: AuthorInput
+    ): AuthorEntity {
+        val author = authorRepo.findById(id).orElseThrow {
+            NoSuchElementException("Author with ID $id not found.")
+        }
+
+        // Cập nhật các field từ input
+        author.name = input.name
+        author.birthYear = input.birthYear
+        author.nationality = input.nationality
+
         return authorRepo.save(author)
     }
 

@@ -1,4 +1,7 @@
 package com.example.quan_ly_sach.dtos
 
-class AuthorInput {
-}
+data class AuthorInput(
+        val name: String,
+        val birthYear: Int?,
+        val nationality: String?
+    )
