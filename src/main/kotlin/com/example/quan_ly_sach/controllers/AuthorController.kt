@@ -1,6 +1,7 @@
 package com.example.quan_ly_sach.controllers
 
 import com.example.quan_ly_sach.dtos.AuthorInput
+import com.example.quan_ly_sach.dtos.AuthorSearchInput
 import com.example.quan_ly_sach.entities.AuthorEntity
 import com.example.quan_ly_sach.entities.BookEntity
 import com.example.quan_ly_sach.repositories.AuthorRepository
@@ -60,6 +61,14 @@ class AuthorController(
         } else false
     }
 
+    @QueryMapping
+    fun searchAuthors(@Argument filter: AuthorSearchInput?): List<AuthorEntity> {
+        return authorRepo.searchAuthors(
+            keyword = filter?.keyword,
+            nationality = filter?.nationality,
+            birthYear = filter?.birthYear
+        )
+    }
     // ================= RELATION =================
     @SchemaMapping(typeName = "Author", field = "books")
     fun books(author: AuthorEntity): List<BookEntity> {

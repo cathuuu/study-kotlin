@@ -7,4 +7,5 @@ import java.awt.print.Book
 @Repository
 interface BookRepository: CommonRepository<BookEntity, Long> {
     fun findByAuthorId(authorId: Long): List<BookEntity>
+    fun findByAuthorName(authorName: String): List<BookEntity>
 }

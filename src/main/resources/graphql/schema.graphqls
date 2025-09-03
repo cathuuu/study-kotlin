@@ -16,6 +16,12 @@ input AuthorInput {
     nationality: String
 }
 
+input AuthorSearchInput {
+    keyword: String
+    nationality: String
+    birthYear: Int
+}
+
 type Book {
     id: ID!
     title: String!
@@ -39,7 +45,7 @@ input BookInput {
 type Query {
     getAllAuthors: [Author!]!
     getAuthorById(id: ID!): Author
-
+    searchAuthors(filter: AuthorSearchInput): [Author!]!
     getAllBooks: [Book!]!
     getBookById(id: ID!): Book
 }

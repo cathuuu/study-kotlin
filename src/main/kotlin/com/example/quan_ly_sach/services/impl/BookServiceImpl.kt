@@ -9,6 +9,6 @@ import com.example.quan_ly_sach.services.CommonService
 import org.springframework.stereotype.Service
 
 @Service
-class BookServiceImpl
+class   BookServiceImpl
     (repo: BookRepository) : CommonServiceImpl<BookEntity, Long, BookRepository>(repo), BookService {
 }
