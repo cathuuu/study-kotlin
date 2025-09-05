@@ -1,21 +1,26 @@
 <template>
-  <dialog v-if="visible" class="author-search" open>
-    <h2>🔍 Tìm kiếm Tác giả</h2>
+  <dialog v-if="visible" class="book-search" open>
+    <h2>🔍 Tìm kiếm Sách</h2>
 
     <form @submit.prevent="handleSearch" class="form">
       <div class="form-group">
-        <label for="keyword">Từ khóa</label>
-        <input v-model="filter.keyword" id="keyword" placeholder="Nhập tên..." />
+        <label for="title">Tiêu đề</label>
+        <input v-model="filter.title" id="title" placeholder="Nhập tiêu đề..." />
       </div>
 
       <div class="form-group">
-        <label for="birthYear">Năm sinh</label>
-        <input v-model.number="filter.birthYear" id="birthYear" type="number" />
+        <label for="publishedYear">Năm XB</label>
+        <input v-model.number="filter.publishedYear" id="publishedYear" type="number" />
       </div>
 
       <div class="form-group">
-        <label for="nationality">Quốc tịch</label>
-        <input v-model="filter.nationality" id="nationality" />
+        <label for="minPrice">Giá tối thiểu</label>
+        <input v-model.number="filter.minPrice" id="minPrice" type="number" />
+      </div>
+
+      <div class="form-group">
+        <label for="maxPrice">Giá tối đa</label>
+        <input v-model.number="filter.maxPrice" id="maxPrice" type="number" />
       </div>
 
       <button type="submit" :disabled="loading">
@@ -26,100 +31,135 @@
 
     <p v-if="error" class="error">❌ {{ error.message }}</p>
 
-    <div class="results" v-if="data?.searchAuthors?.length">
+    <div class="results" v-if="data?.searchBooks?.length">
       <h3>📖 Kết quả:</h3>
-      <ul>
-        <li
-            v-for="author in data.searchAuthors"
-            :key="author.id"
-            @click="selectAuthor(author)"
-            class="result-item"
-        >
-          <strong>{{ author.name }}</strong>
-          ({{ author.birthYear ?? "?" }}) - {{ author.nationality ?? "Không rõ" }}
-        </li>
-      </ul>
+      <table>
+        <thead>
+        <tr>
+          <th>Tiêu đề</th>
+          <th>Năm XB</th>
+          <th>Giá</th>
+          <th>Số lượng</th>
+          <th>Chọn</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr v-for="book in data.searchBooks" :key="book.id" class="result-item" @click="selectBook(book)">
+          <td>{{ book.title }}</td>
+          <td>{{ book.publishedYear || '-' }}</td>
+          <td>{{ book.price?.toLocaleString('vi-VN') || '-' }}</td>
+          <td>{{ book.quantity ?? '-' }}</td>
+          <td>
+            <button @click.stop="selectBook(book)">✅</button>
+          </td>
+        </tr>
+        </tbody>
+      </table>
     </div>
 
-    <p v-else-if="!loading && searched">⚠️ Không tìm thấy tác giả nào.</p>
+    <p v-else-if="!loading && searched">⚠️ Không có sách nào khớp.</p>
   </dialog>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref, computed, watch } from "vue";
 import { useLazyQuery } from "@vue/apollo-composable";
-import { SEARCH_AUTHOR } from "../services/queries.ts";
+import { SEARCH_BOOKS } from "../services/queries.ts";
 
 // ---- Types ----
-interface Author {
+interface Book {
   id: string;
-  name: string;
-  birthYear?: number | null;
-  nationality?: string | null;
+  title: string;
+  publishedYear?: number | null;
+  price?: number | null;
+  quantity?: number | null;
 }
 
-interface AuthorSearchInput {
-  keyword?: string | null;
-  birthYear?: number | null;
-  nationality?: string | null;
+interface BookSearchInput {
+  title?: string | null;
+  publishedYear?: number | null;
+  minPrice?: number | null;
+  maxPrice?: number | null;
 }
 
 // ---- Props & Emits ----
-defineProps({
-  visible: Boolean
+const props = defineProps({
+  visible: Boolean,
 });
+
 const emit = defineEmits<{
   (e: "close"): void;
-  (e: "searched", authors: Author[]): void;
-  (e: "selected", author: Author): void;
+  (e: "searched", books: Book[]): void;
+  (e: "selected", book: Book): void;
 }>();
 
 // ---- State ----
-const filter = reactive<AuthorSearchInput>({
-  keyword: "",
-  birthYear: null,
-  nationality: "",
+const filter = reactive<BookSearchInput>({
+  title: "",
+  publishedYear: null,
+  minPrice: null,
+  maxPrice: null,
 });
 const searched = ref(false);
 
 // ---- Tạo biến động bằng computed property ----
 const variables = computed(() => ({
   filter: {
-    keyword: filter.keyword || undefined,
-    birthYear: filter.birthYear ?? undefined,
-    nationality: filter.nationality || undefined,
+    title: filter.title || undefined,
+    publishedYear: filter.publishedYear ?? undefined,
+    minPrice: filter.minPrice ?? undefined,
+    maxPrice: filter.maxPrice ?? undefined,
   },
 }));
 
 // ---- Truy vấn với computed property ----
 const { load, loading, result: data, error } = useLazyQuery<
-    { searchAuthors: Author[] },
-    { filter: AuthorSearchInput }
->(SEARCH_AUTHOR, variables); // Sửa: Truyền biến `variables` vào đây
+    { searchBooks: Book[] },
+    { filter: BookSearchInput }
+>(SEARCH_BOOKS, variables);
 
-// ---- Watcher để emit kết quả ----
-watch(data, (val) => {
-  emit("searched", val?.searchAuthors || []);
-});
+// ---- Watcher để làm sạch form khi popup đóng ----
+watch(
+    () => props.visible,
+    (newVal) => {
+      if (newVal) {
+        searched.value = false;
+      } else {
+        resetFilter();
+      }
+    },
+);
 
 // ---- Methods ----
 async function handleSearch() {
   searched.value = true;
-  await load(); // Sửa: Gọi load mà không cần truyền biến nữa
+  await load();
+  if (!loading.value && !error.value) {
+    emit("searched", data.value?.searchBooks || []);
+  }
 }
 
-function selectAuthor(author: Author) {
-  emit("selected", author);
+function selectBook(book: Book) {
+  emit("selected", book);
   close();
+}
+
+function resetFilter() {
+  Object.assign(filter, {
+    title: "",
+    publishedYear: null,
+    minPrice: null,
+    maxPrice: null,
+  });
+  searched.value = false;
 }
 
 function close() {
   emit("close");
 }
 </script>
-
 <style scoped>
-.author-search {
+.book-search {
   position: fixed;
   top: 50%;
   left: 50%;
@@ -131,21 +171,20 @@ function close() {
   border-radius: 12px;
   box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
   width: 90%;
-  max-width: 500px;
-  max-height: 80vh;   /* Giới hạn chiều cao popup */
-  overflow-y: auto;   /* Bật cuộn khi nội dung dài */
+  max-width: 700px;
+  max-height: 80vh;
+  overflow-y: auto;
   scrollbar-width: none;
   border: 1px solid #e0e0e0;
   animation: fadeIn 0.3s ease-out;
 }
 
-
-.author-search::backdrop {
+.book-search::backdrop {
   background-color: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(5px);
 }
 
-.author-search h2 {
+.book-search h2 {
   font-size: 1.8rem;
   color: #174a9e;
   text-align: center;
@@ -153,7 +192,7 @@ function close() {
   position: relative;
 }
 
-.author-search h2::after {
+.book-search h2::after {
   content: '';
   display: block;
   width: 50px;
@@ -164,11 +203,15 @@ function close() {
 
 .form {
   display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .form-group {
+  flex: 1;
+  min-width: 150px;
   display: flex;
   flex-direction: column;
 }
@@ -228,8 +271,8 @@ function close() {
 
 .results {
   margin-top: 2rem;
-  max-height: 250px;   /* Giới hạn chiều cao */
-  overflow-y: auto;    /* Bật cuộn dọc */
+  max-height: 250px;
+  overflow-y: auto;
   padding-right: 8px;
 }
 
@@ -254,14 +297,25 @@ function close() {
   margin-bottom: 1rem;
 }
 
-.results ul {
-  list-style: none;
-  padding: 0;
+.results table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.results th,
+.results td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.results th {
+  background-color: #f5f5f5;
+  color: #444;
+  font-weight: 700;
 }
 
 .result-item {
-  padding: 1rem;
-  border-bottom: 1px solid #f0f0f0;
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
@@ -274,5 +328,4 @@ function close() {
   from { opacity: 0; transform: translate(-50%, -60%); }
   to { opacity: 1; transform: translate(-50%, -50%); }
 }
-
 </style>

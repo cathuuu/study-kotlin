@@ -37,6 +37,14 @@ input BookInput {
     price: Float
     quantity: Int
 }
+input BookSearchInput {
+    title: String
+    publishedYear: Int
+    minPrice: Float
+    maxPrice: Float
+    minQuantity: Int
+    maxQuantity: Int
+}
 
 ## =====================================
 ## CÁC TRUY VẤN (QUERIES)
@@ -48,6 +56,7 @@ type Query {
     searchAuthors(filter: AuthorSearchInput): [Author!]!
     getAllBooks: [Book!]!
     getBookById(id: ID!): Book
+    searchBooks(filter: BookSearchInput): [Book!]!
 }
 
 ## =====================================
@@ -62,4 +71,23 @@ type Mutation {
     addBook(authorId: ID!, input: BookInput!): Book!
     updateBook(id: ID!, authorId: ID, input: BookInput!): Book!
     deleteBook(id: ID!): Boolean!
+}
+type AuthorPage {
+    content: [Author!]!
+    totalElements: Int!
+    totalPages: Int!
+    number: Int!
+    size: Int!
+}
+
+type BookPage {
+    content: [Book!]!
+    totalElements: Int!
+    totalPages: Int!
+    number: Int!
+    size: Int!
+}
+extend type Query {
+    getAuthorsByPage(filter: AuthorSearchInput, page: Int!, size: Int!): AuthorPage!
+    getBooksByPage(filter: BookSearchInput, page: Int!, size: Int!): BookPage!
 }

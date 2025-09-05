@@ -20,20 +20,13 @@
         <span v-else>➕</span>
       </button>
     </form>
-    <button onclick="openModal()">Mở Popup</button>
-  </div>
-  <div class="modal" id="myModal">
-    <div class="modal-content">
-      <h2>Nội dung popup</h2>
-      <button onclick="closeModal()">Đóng</button>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref, computed } from "vue";
 import { useQuery, useMutation } from "@vue/apollo-composable";
-import { ADD_BOOK, GET_ALL_BOOKS, GET_ALL_AUTHORS } from "../graphql/queries";
+import { ADD_BOOK, GET_ALL_BOOKS, GET_ALL_AUTHORS } from "../services/queries.ts";
 
 // types
 interface Author {

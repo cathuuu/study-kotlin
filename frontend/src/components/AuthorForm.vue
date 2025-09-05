@@ -3,95 +3,129 @@
     <h2>{{ isEditMode ? "✏️ Cập nhật Tác giả" : "➕ Thêm Tác giả" }}</h2>
 
     <form @submit.prevent="handleSubmit">
-      <!-- Tên -->
       <div class="form-group">
         <label for="name">Tên</label>
         <input v-model="form.name" id="name" required />
       </div>
 
-      <!-- Năm sinh -->
       <div class="form-group">
         <label for="birthYear">Năm sinh</label>
-        <input v-model.number="form.birthYear" id="birthYear" type="number" required />
+        <input id="birthYear" v-model.number="form.birthYear" type="number"/>
       </div>
 
-      <!-- Quốc tịch -->
       <div class="form-group">
         <label for="nationality">Quốc tịch</label>
-        <input v-model="form.nationality" id="nationality" required />
+        <input id="nationality" v-model="form.nationality"/>
       </div>
 
-      <!-- Submit -->
-      <button type="submit" :disabled="loading">
-        {{ loading ? "⏳ Đang xử lý..." : (isEditMode ? "Cập nhật" : "Thêm") }}
-      </button>
+      <div class="form-actions">
+        <button :disabled="loading" type="submit">
+          {{ loading ? "⏳ Đang xử lý..." : (isEditMode ? "Cập nhật" : "Thêm") }}
+        </button>
+        <button :disabled="loading" type="button" @click="onCancel">Hủy</button>
+      </div>
     </form>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, computed } from "vue";
-import { useMutation } from "@vue/apollo-composable";
-import { ADD_AUTHOR, UPDATE_AUTHOR } from "../graphql/queries";
+import {computed, reactive, watch} from "vue";
+import {useMutation} from "@vue/apollo-composable";
+import {ADD_AUTHOR, UPDATE_AUTHOR} from "../services/queries.ts";
 
-// Props: nếu có author thì là edit mode
+type Nullable<T> = T | null | undefined;
+
 interface Author {
   id?: string;
   name: string;
-  birthYear: number;
-  nationality: string;
+  birthYear?: Nullable<number>;
+  nationality?: Nullable<string>;
 }
 
 const props = defineProps<{
-  author?: Author | null; // khi edit sẽ truyền vào, thêm mới thì null
+  editingAuthor: Author | null; // App.vue truyền :editingAuthor="editingAuthor"
 }>();
 
 const emit = defineEmits<{
-  (e: "saved"): void; // emit khi save xong để refresh danh sách
+  (e: "saved"): void;
+  (e: "cancel"): void;
 }>();
 
-// Form state
+// ---- state form
 const form = reactive<Author>({
-  id: props.author?.id,
-  name: props.author?.name ?? "",
-  birthYear: props.author?.birthYear ?? new Date().getFullYear(),
-  nationality: props.author?.nationality ?? "",
+  id: "",
+  name: "",
+  birthYear: null,
+  nationality: "",
 });
 
-// Xác định edit hay add
-const isEditMode = computed(() => !!props.author);
+// ✅ đồng bộ form khi props.editingAuthor thay đổi
+watch(
+    () => props.editingAuthor,
+    (a) => {
+      if (a) {
+        form.id = a.id ?? "";
+        form.name = a.name ?? "";
+        form.birthYear = a.birthYear ?? null;
+        form.nationality = a.nationality ?? "";
+      } else {
+        resetForm();
+      }
+    },
+    {immediate: true}
+);
 
-// Mutations
+const isEditMode = computed(() => !!props.editingAuthor && !!form.id);
+
+// ---- mutations
 const { mutate: addAuthor, loading: adding } = useMutation(ADD_AUTHOR);
 const { mutate: updateAuthor, loading: updating } = useMutation(UPDATE_AUTHOR);
-
 const loading = computed(() => adding.value || updating.value);
 
-// Submit handler
+// helper: chuẩn hóa input trước khi gửi
+function normalizeInput() {
+  return {
+    name: form.name.trim(),
+    birthYear:
+        form.birthYear === null || form.birthYear === undefined || form.birthYear === ("" as any)
+            ? null
+            : Number(form.birthYear),
+    nationality: form.nationality?.toString().trim() || null,
+  };
+}
+
 async function handleSubmit() {
   try {
+    const input = normalizeInput();
+
     if (isEditMode.value && form.id) {
+      // ✅ GỬI ĐÚNG DẠNG BIẾN CHO BE: { id, input }
       await updateAuthor({
         id: form.id,
-        input: {
-          name: form.name,
-          birthYear: form.birthYear,
-          nationality: form.nationality,
-        },
+        input,
       });
     } else {
-      await addAuthor({
-        input: {
-          name: form.name,
-          birthYear: form.birthYear,
-          nationality: form.nationality,
-        },
-      });
+      // ✅ Thêm mới: { input }
+      await addAuthor({input});
     }
+
     emit("saved");
+    resetForm();
   } catch (err) {
     console.error("❌ Lỗi khi lưu tác giả:", err);
   }
+}
+
+function onCancel() {
+  resetForm();
+  emit("cancel");
+}
+
+function resetForm() {
+  form.id = "";
+  form.name = "";
+  form.birthYear = null;
+  form.nationality = "";
 }
 </script>
 
@@ -102,7 +136,7 @@ async function handleSubmit() {
   padding: 2rem;
   background: white;
   border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .1);
 }
 
 h2 {
@@ -117,7 +151,6 @@ form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1.5rem;
-  align-items: center;
 }
 
 .form-group {
@@ -127,57 +160,49 @@ form {
 
 label {
   font-weight: 600;
-  margin-bottom: 0.5rem;
+  margin-bottom: .5rem;
   color: var(--text-color, #444);
 }
 
-input,
-select {
-  padding: 0.75rem 1rem;
+input {
+  padding: .75rem 1rem;
   border: 1px solid var(--border-color, #ccc);
   border-radius: 8px;
-  font-size: 1rem;
   background: var(--secondary-color, #fafafa);
-  transition: all 0.3s ease;
+  transition: all .3s;
 }
 
-input:focus,
-select:focus {
+input:focus {
   border-color: var(--primary-color, #4a90e2);
   background: white;
   outline: none;
-  box-shadow: 0 0 0 3px rgba(23, 74, 158, 0.2);
+  box-shadow: 0 0 0 3px rgba(23, 74, 158, .2);
 }
 
 .form-actions {
   grid-column: 1 / -1;
   display: flex;
-  justify-content: flex-end;
   gap: 1rem;
-  margin-top: 1rem;
+  justify-content: flex-end;
+  margin-top: .5rem;
 }
 
 button {
-  padding: 0.9rem 2rem;
+  padding: .9rem 2rem;
   font-weight: bold;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: .2s;
 }
 
 button[type="submit"] {
-  background-color: var(--primary-color, #4a90e2);
-  color: white;
-}
-
-button[type="submit"]:hover:not(:disabled) {
-  background-color: var(--active-bg-color, #357abd);
+  background: var(--primary-color, #4a90e2);
+  color: #fff;
 }
 
 button[type="submit"]:disabled {
-  background-color: var(--border-color, #b0c4de);
+  background: #b0c4de;
   cursor: not-allowed;
 }
-
 </style>

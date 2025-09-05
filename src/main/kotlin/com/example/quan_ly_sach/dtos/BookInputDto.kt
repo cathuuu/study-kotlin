@@ -1,6 +1,6 @@
 package com.example.quan_ly_sach.dtos
 
-data class BookInput(
+data class BookInputDto(
 val title: String,
 val publishedYear: Int?,
 val price: Double?,

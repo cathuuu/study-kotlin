@@ -1,6 +1,8 @@
 <template>
   <div class="app">
+    <!-- Navbar -->
     <nav class="navbar">
+
       <button
           class="nav-link"
           :class="{ active: currentTab === 'books' }"
@@ -15,8 +17,10 @@
       >
         ✍️ Quản lý Tác giả
       </button>
+
     </nav>
 
+    <!-- BOOKS -->
     <div v-if="currentTab === 'books'" class="content">
       <h1>📚 Quản lý Sách</h1>
       <p v-if="loadingBooks">⏳ Đang tải...</p>
@@ -30,10 +34,21 @@
       <BookList
           :books="books"
           @deleted="fetchBooks"
-          @edit="(book) => (editingBook = book)"
+          @edit="editingBook = $event"
+      />
+
+      <!-- Popup search -->
+      <button @click="showBookSearch = true">🔍 Tìm kiếm Sách</button>
+      <BookSearch
+          :visible="showBookSearch"
+          @close="showBookSearch = false"
+          @searched="books = $event"
+          @selected="handleBookSelected"
       />
     </div>
 
+
+    <!-- AUTHORS -->
     <div v-else class="content">
       <h1>✍️ Quản lý Tác giả</h1>
       <p v-if="loadingAuthors">⏳ Đang tải...</p>
@@ -44,15 +59,14 @@
           @saved="handleAuthorSaved"
           @cancel="editingAuthor = null"
       />
-
       <AuthorList
           :authors="authors"
           @deleted="fetchAuthors"
-          @edit="(author) => (editingAuthor = author)"
+          @edit="editingAuthor = $event"
       />
 
+      <!-- Popup search -->
       <button @click="showAuthorSearch = true">🔍 Tìm kiếm Tác giả</button>
-
       <AuthorSearch
           :visible="showAuthorSearch"
           @close="showAuthorSearch = false"
@@ -76,9 +90,10 @@ import AuthorForm from "./components/AuthorForm.vue";
 import AuthorSearch from "./components/AuthorSearchPopup.vue";
 
 // GraphQL
-import { GET_ALL_BOOKS, GET_ALL_AUTHORS } from "./graphql/queries";
+import { GET_ALL_BOOKS, GET_ALL_AUTHORS } from "./services/queries.ts";
+import BookSearch from "./components/BookSearch.vue";
 
-// ========== Types ==========
+/* ---------- Types ---------- */
 interface Author {
   id: string;
   name: string;
@@ -95,16 +110,24 @@ interface Book {
   author?: Author;
 }
 
-// Cung cấp Apollo Client toàn cục
+// Setup Apollo
 provideApolloClient(apolloClient);
 
-// Tab hiện tại
+// State chung
 const currentTab = ref<"books" | "authors">("books");
-const showAuthorSearch = ref(false); // Thêm biến để quản lý hiển thị popup
+const showAuthorSearch = ref(false);
 
-/* ------------------ BOOK ------------------ */
+/* ---------- BOOK ---------- */
 const books = ref<Book[]>([]);
 const editingBook = ref<Book | null>(null);
+const showBookSearch = ref(false);
+
+// Khi chọn từ popup search Book
+const handleBookSelected = (book: Book) => {
+  editingBook.value = book;
+  showBookSearch.value = false;
+};
+
 
 const {
   result: bookResult,
@@ -123,7 +146,7 @@ const handleBookSaved = () => {
   editingBook.value = null;
 };
 
-/* ------------------ AUTHOR ------------------ */
+/* ---------- AUTHOR ---------- */
 const authors = ref<Author[]>([]);
 const editingAuthor = ref<Author | null>(null);
 
@@ -144,7 +167,7 @@ const handleAuthorSaved = () => {
   editingAuthor.value = null;
 };
 
-// Hàm xử lý khi chọn một tác giả từ popup
+// Khi chọn từ popup search
 const handleAuthorSelected = (author: Author) => {
   editingAuthor.value = author;
   showAuthorSearch.value = false;
@@ -165,10 +188,8 @@ const handleAuthorSelected = (author: Author) => {
 
 .app {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   color: var(--text-color);
-  background-color: #f7f3f1; /* Nền màu kem nhạt */
+  background-color: #f7f3f1;
   min-height: 100vh;
   padding: 3rem;
   box-sizing: border-box;
@@ -177,7 +198,6 @@ const handleAuthorSelected = (author: Author) => {
 .navbar {
   display: flex;
   justify-content: center;
-  align-items: center;
   gap: 1.5rem;
   padding: 1.5rem;
   background: white;
@@ -189,16 +209,12 @@ const handleAuthorSelected = (author: Author) => {
 .nav-link {
   background: none;
   border: none;
-  text-decoration: none;
-  color: var(--text-color);
   font-weight: 600;
   font-size: 1.1rem;
   padding: 0.9rem 1.8rem;
   border-radius: var(--border-radius);
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  white-space: nowrap;
-  position: relative;
+  transition: all 0.3s;
 }
 
 .nav-link:hover {
@@ -209,12 +225,6 @@ const handleAuthorSelected = (author: Author) => {
   color: white;
   background: var(--primary-color);
   box-shadow: 0 4px 10px rgba(121, 85, 72, 0.4);
-  transform: translateY(-2px);
-}
-
-.nav-link.active:hover {
-  background: var(--active-bg-color);
-  transform: translateY(-2px);
 }
 
 .content {
@@ -244,21 +254,19 @@ button {
   background-color: var(--primary-color);
   color: white;
   font-weight: 600;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition: all 0.3s;
   margin-top: 1.5rem;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 button:hover {
   background-color: var(--active-bg-color);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-  transform: translateY(-3px);
+  transform: translateY(-2px);
 }
 
 button:disabled {
   background-color: #d7ccc8;
   cursor: not-allowed;
-  transform: none;
   box-shadow: none;
 }
 </style>

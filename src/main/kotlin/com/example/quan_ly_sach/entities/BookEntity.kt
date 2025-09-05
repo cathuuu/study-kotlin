@@ -10,7 +10,7 @@ data class BookEntity(
     var id: Long? = null,
 
     @Column(nullable = false)
-    var title: String,
+    var title: String?,
 
     var publishedYear: Int? = null,
 

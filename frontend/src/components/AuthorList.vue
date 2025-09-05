@@ -22,15 +22,19 @@
       </tr>
       </tbody>
     </table>
+    <div class="pagination">
+      <button :disabled="page === 0" @click="prevPage">Trước</button>
+      <span>Trang {{page +1}} / {{totalPages}} </span>
+      <button :disabled="page >= totalPages - 1" @click="nextPage">Tiếp</button>
+    </div>
   </div>
-
 </template>
 
 <script setup lang="ts">
-import { useMutation } from "@vue/apollo-composable";
-import { DELETE_AUTHOR } from "../graphql/queries";
+import {useMutation, useQuery} from "@vue/apollo-composable";
+import {DELETE_AUTHOR, SEARCH_AUTHOR_PAGE_NATIVE} from "../services/queries.ts";
+import {computed, ref} from "vue";
 
-// ---- Type Author ----
 interface Author {
   id: string;
   name: string;
@@ -38,20 +42,38 @@ interface Author {
   nationality?: string | null;
 }
 
-// ---- Props ----
-defineProps<{
-  authors: Author[];
-}>();
-// ---- Emits ----
+defineProps<{ authors: Author[] }>();
+
 const emit = defineEmits<{
   (e: "edit", author: Author): void;
   (e: "deleted", id: string): void;
 }>();
+//phan trang
+const page = ref(0);
+const size = ref(5);
 
-// ---- Mutation ----
-const { mutate: deleteAuthorMutation } = useMutation<{ deleteAuthor: boolean }>(DELETE_AUTHOR);
+const { result, refetch } = useQuery(SEARCH_AUTHOR_PAGE_NATIVE, {
+  page: page.value,
+  size: size.value,
+});
+const { mutate: deleteAuthorMutation } = useMutation<{ deleteAuthor: boolean }>(
+    DELETE_AUTHOR
+);
+  const authors = computed<Author[]>(() => result.value?.getAuthorsByPage?.content || []);
+  const totalPages = computed<number>(() => result.value?.getAuthorsByPage?.totalPages || 0);
+  function nextPage() {
+    if (page.value < totalPages.value - 1) {
+      page.value++;
+      refetch({ page: page.value, size: size.value });
+    }
+  }
 
-// ---- Methods ----
+  function prevPage() {
+    if (page.value > 0) {
+      page.value--;
+      refetch({ page: page.value, size: size.value });
+    }
+  }
 function edit(author: Author) {
   emit("edit", author);
 }
@@ -76,15 +98,49 @@ table {
 th,
 td {
   border: 1px solid #ddd;
-  padding: 8px;
+  padding: 12px 8px;
   text-align: left;
+  vertical-align: top;
 }
 
 th {
   background: #f0f0f0;
 }
 
-button {
+.status-message {
+  text-align: center;
+  padding: 1rem;
+  font-style: italic;
+  color: #666;
+}
+
+.status-message.error {
+  color: #d32f2f;
+  font-weight: bold;
+}
+
+.spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border-left-color: #2196f3;
+  animation: spin 1s ease infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.btn {
   margin-right: 6px;
   padding: 6px 10px;
   border: none;
@@ -92,12 +148,12 @@ button {
   cursor: pointer;
 }
 
-button:first-of-type {
-  background: #ffc107; /* nút sửa: vàng */
+.btn.edit {
+  background: #ffc107;
 }
 
-button:last-of-type {
-  background: #f44336; /* nút xóa: đỏ */
+.btn.delete {
+  background: #f44336;
   color: white;
 }
 </style>

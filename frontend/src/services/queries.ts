@@ -74,6 +74,20 @@ export const SEARCH_AUTHOR = gql`
     }
 `;
 
+
+
+export const SEARCH_BOOKS = gql`
+    query SearchBooks($filter: BookSearchInput) {
+        searchBooks(filter: $filter) {
+            id
+            title
+            publishedYear
+            price
+            quantity
+        }
+    }
+`;
+
 // --- Mutations ---
 export const ADD_AUTHOR = gql`
     mutation AddAuthor($input: AuthorInput!) {
@@ -138,5 +152,42 @@ export const UPDATE_BOOK = gql`
 export const DELETE_BOOK = gql`
     mutation DeleteBook($id: ID!) {
         deleteBook(id: $id)
+    }
+`;
+
+export const SEARCH_BOOK_PAGE_NATIVE =gql`
+   query GetBooksByPage($filter: BookSearchInput, $page: Int!, $size: Int!) {
+    getBooksByPage(filter: $filter, page: $page, size: $size) {
+      content {
+        id
+        title
+          publishedYear
+          price
+          quantity
+          author {
+              name
+          }
+      }
+      totalElements
+      totalPages
+      number
+      size
+    }
+  }
+ `;
+export const SEARCH_AUTHOR_PAGE_NATIVE = gql`
+    query GetAuthorsByPage($filter: AuthorSearchInput, $page: Int!, $size: Int!) {
+        getAuthorsByPage(filter: $filter, page: $page, size: $size) {
+            content {
+                id
+                name
+                birthYear
+                nationality
+            }
+            totalElements
+            totalPages
+            number
+            size
+        }
     }
 `;

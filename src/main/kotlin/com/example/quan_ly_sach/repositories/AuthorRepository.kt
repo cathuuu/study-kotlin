@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository
 import org.yaml.snakeyaml.events.Event
 
 @Repository
-interface AuthorRepository : CommonRepository<AuthorEntity, Long> {
+interface AuthorRepository : CommonRepository<AuthorEntity, Long>, AuthorRepositoryCustom {
     @Query("""
     SELECT a FROM AuthorEntity a
     WHERE (:keyword IS NULL OR LOWER(a.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
