@@ -34,7 +34,7 @@ interface Author {
   name: string;
 }
 
-interface BookInput {
+export interface BookInput {
   title: string;
   publishedYear: number | null;
   price: number | null;

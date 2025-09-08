@@ -1,7 +1,16 @@
 <template>
   <div class="author-list">
     <h2>📖 Danh sách Tác giả</h2>
-    <table>
+
+    <div v-if="loading" class="status-message">
+      <span class="spinner"></span> Đang tải dữ liệu...
+    </div>
+
+    <div v-else-if="error" class="status-message error">
+      Lỗi tải dữ liệu: {{ error.message }}
+    </div>
+
+    <table v-else>
       <thead>
       <tr>
         <th>Tên</th>
@@ -16,24 +25,25 @@
         <td>{{ author.birthYear || "-" }}</td>
         <td>{{ author.nationality || "-" }}</td>
         <td>
-          <button @click="edit(author)">✏️</button>
-          <button @click="remove(author.id)">🗑️</button>
+          <button class="btn edit" @click="edit(author)">✏️</button>
+          <button class="btn delete" @click="remove(author.id)">🗑️</button>
         </td>
       </tr>
       </tbody>
     </table>
+
     <div class="pagination">
       <button :disabled="page === 0" @click="prevPage">Trước</button>
-      <span>Trang {{page +1}} / {{totalPages}} </span>
+      <span>Trang {{ page + 1 }} / {{ totalPages }}</span>
       <button :disabled="page >= totalPages - 1" @click="nextPage">Tiếp</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import {useMutation, useQuery} from "@vue/apollo-composable";
-import {DELETE_AUTHOR, SEARCH_AUTHOR_PAGE_NATIVE} from "../services/queries.ts";
-import {computed, ref} from "vue";
+import { useMutation, useQuery } from "@vue/apollo-composable";
+import { DELETE_AUTHOR, SEARCH_AUTHOR_PAGE_NATIVE } from "../services/queries.ts";
+import { computed, ref } from "vue";
 
 interface Author {
   id: string;
@@ -42,50 +52,68 @@ interface Author {
   nationality?: string | null;
 }
 
-defineProps<{ authors: Author[] }>();
-
 const emit = defineEmits<{
   (e: "edit", author: Author): void;
   (e: "deleted", id: string): void;
 }>();
-//phan trang
+
+// Phân trang
 const page = ref(0);
 const size = ref(5);
 
-const { result, refetch } = useQuery(SEARCH_AUTHOR_PAGE_NATIVE, {
-  page: page.value,
-  size: size.value,
-});
+// Lấy dữ liệu tác giả có phân trang
+const { result, loading, error, refetch } = useQuery(
+    SEARCH_AUTHOR_PAGE_NATIVE,
+    () => ({ page: page.value, size: size.value })
+);
+
+// Mutation xóa
 const { mutate: deleteAuthorMutation } = useMutation<{ deleteAuthor: boolean }>(
     DELETE_AUTHOR
 );
-  const authors = computed<Author[]>(() => result.value?.getAuthorsByPage?.content || []);
-  const totalPages = computed<number>(() => result.value?.getAuthorsByPage?.totalPages || 0);
-  function nextPage() {
-    if (page.value < totalPages.value - 1) {
-      page.value++;
-      refetch({ page: page.value, size: size.value });
-    }
-  }
 
-  function prevPage() {
-    if (page.value > 0) {
-      page.value--;
-      refetch({ page: page.value, size: size.value });
-    }
+// Dữ liệu hiển thị từ kết quả truy vấn
+const authors = computed<Author[]>(() => result.value?.getAuthorsByPage?.content || []);
+const totalPages = computed<number>(() => result.value?.getAuthorsByPage?.totalPages || 0);
+
+// Phân trang
+function nextPage() {
+  if (page.value < totalPages.value - 1) {
+    page.value++;
   }
+}
+
+function prevPage() {
+  if (page.value > 0) {
+    page.value--;
+  }
+}
+
+// Chỉnh sửa và xóa
 function edit(author: Author) {
   emit("edit", author);
 }
 
 async function remove(id: string) {
   if (!confirm("Bạn có chắc muốn xóa tác giả này?")) return;
+
   await deleteAuthorMutation({ id });
+
+  // Tải lại dữ liệu của trang hiện tại
+  refetch();
+
+  // Phát ra sự kiện cho component cha
   emit("deleted", id);
 }
+
+// Xuất ra hàm refetch để component cha có thể gọi
+defineExpose({
+  refetchAuthors: refetch
+});
 </script>
 
 <style scoped>
+/* Giữ nguyên style */
 .author-list {
   margin-top: 20px;
 }

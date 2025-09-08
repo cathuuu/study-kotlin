@@ -73,6 +73,7 @@ interface Book {
   publishedYear?: number | null;
   price?: number | null;
   quantity?: number | null;
+  authorId: string;
 }
 
 interface BookSearchInput {
@@ -107,8 +108,8 @@ const variables = computed(() => ({
   filter: {
     title: filter.title || undefined,
     publishedYear: filter.publishedYear ?? undefined,
-    minPrice: filter.minPrice ?? undefined,
-    maxPrice: filter.maxPrice ?? undefined,
+    minPrice: filter.minPrice ?? null,
+    maxPrice: filter.maxPrice ?? null,
   },
 }));
 

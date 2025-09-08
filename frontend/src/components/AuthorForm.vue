@@ -1,208 +1,110 @@
 <template>
-  <div class="author-form">
-    <h2>{{ isEditMode ? "✏️ Cập nhật Tác giả" : "➕ Thêm Tác giả" }}</h2>
+  <div class="author-form-container">
+    <h3>{{ editingAuthor ? '✏️ Chỉnh sửa Tác giả' : '✨ Thêm Tác giả mới' }}</h3>
 
+    <!-- Form -->
     <form @submit.prevent="handleSubmit">
       <div class="form-group">
         <label for="name">Tên</label>
-        <input v-model="form.name" id="name" required />
+        <input id="name" v-model="authorForm.name" required />
       </div>
 
       <div class="form-group">
         <label for="birthYear">Năm sinh</label>
-        <input id="birthYear" v-model.number="form.birthYear" type="number"/>
+        <input id="birthYear" v-model.number="authorForm.birthYear" type="number" />
       </div>
 
       <div class="form-group">
         <label for="nationality">Quốc tịch</label>
-        <input id="nationality" v-model="form.nationality"/>
+        <input id="nationality" v-model="authorForm.nationality" />
       </div>
 
       <div class="form-actions">
-        <button :disabled="loading" type="submit">
-          {{ loading ? "⏳ Đang xử lý..." : (isEditMode ? "Cập nhật" : "Thêm") }}
-        </button>
-        <button :disabled="loading" type="button" @click="onCancel">Hủy</button>
+        <button type="submit" class="btn save-btn">Lưu</button>
+        <button type="button" @click="handleCancel" class="btn cancel-btn" v-if="editingAuthor">Hủy</button>
       </div>
     </form>
   </div>
 </template>
 
 <script setup lang="ts">
-import {computed, reactive, watch} from "vue";
-import {useMutation} from "@vue/apollo-composable";
-import {ADD_AUTHOR, UPDATE_AUTHOR} from "../services/queries.ts";
+import { reactive, watch } from "vue";
+import { useMutation } from "@vue/apollo-composable";
+import { ADD_AUTHOR, UPDATE_AUTHOR } from "../services/queries";
 
-type Nullable<T> = T | null | undefined;
-
-interface Author {
+// ====== Types ======
+export interface Author {
   id?: string;
   name: string;
-  birthYear?: Nullable<number>;
-  nationality?: Nullable<string>;
+  birthYear?: number | null;
+  nationality?: string | null;
 }
 
-const props = defineProps<{
-  editingAuthor: Author | null; // App.vue truyền :editingAuthor="editingAuthor"
-}>();
-
+// ====== Props & Emit ======
+const props = defineProps<{ editingAuthor: Author | null }>();
 const emit = defineEmits<{
   (e: "saved"): void;
   (e: "cancel"): void;
 }>();
 
-// ---- state form
-const form = reactive<Author>({
+// ====== Reactive Form State ======
+const authorForm = reactive<Author>({
   id: "",
   name: "",
   birthYear: null,
-  nationality: "",
+  nationality: ""
 });
 
-// ✅ đồng bộ form khi props.editingAuthor thay đổi
-watch(
-    () => props.editingAuthor,
-    (a) => {
-      if (a) {
-        form.id = a.id ?? "";
-        form.name = a.name ?? "";
-        form.birthYear = a.birthYear ?? null;
-        form.nationality = a.nationality ?? "";
-      } else {
-        resetForm();
-      }
-    },
-    {immediate: true}
-);
+// ====== Mutation ======
+const { mutate: addAuthorMutation } = useMutation(ADD_AUTHOR);
+const { mutate: updateAuthorMutation } = useMutation(UPDATE_AUTHOR);
 
-const isEditMode = computed(() => !!props.editingAuthor && !!form.id);
+// ====== Watch Editing Author ======
+watch(() => props.editingAuthor, (val) => {
+  if (val) Object.assign(authorForm, val);
+  else resetForm();
+}, { immediate: true });
 
-// ---- mutations
-const { mutate: addAuthor, loading: adding } = useMutation(ADD_AUTHOR);
-const { mutate: updateAuthor, loading: updating } = useMutation(UPDATE_AUTHOR);
-const loading = computed(() => adding.value || updating.value);
-
-// helper: chuẩn hóa input trước khi gửi
-function normalizeInput() {
-  return {
-    name: form.name.trim(),
-    birthYear:
-        form.birthYear === null || form.birthYear === undefined || form.birthYear === ("" as any)
-            ? null
-            : Number(form.birthYear),
-    nationality: form.nationality?.toString().trim() || null,
-  };
+// ====== Helper Functions ======
+function resetForm() {
+  Object.assign(authorForm, { id: "", name: "", birthYear: null, nationality: "" });
 }
 
-async function handleSubmit() {
+// ====== Handle Submit ======
+const handleSubmit = async () => {
+  const input = {
+    name: authorForm.name.trim(),
+    birthYear: authorForm.birthYear ?? null,
+    nationality: authorForm.nationality?.trim() || null
+  };
+
   try {
-    const input = normalizeInput();
-
-    if (isEditMode.value && form.id) {
-      // ✅ GỬI ĐÚNG DẠNG BIẾN CHO BE: { id, input }
-      await updateAuthor({
-        id: form.id,
-        input,
-      });
+    if (authorForm.id) {
+      await updateAuthorMutation({ id: authorForm.id, input });
     } else {
-      // ✅ Thêm mới: { input }
-      await addAuthor({input});
+      await addAuthorMutation({ input });
     }
-
-    emit("saved");
+    emit("saved"); // parent refetch
     resetForm();
   } catch (err) {
     console.error("❌ Lỗi khi lưu tác giả:", err);
   }
-}
+};
 
-function onCancel() {
+// ====== Handle Cancel ======
+const handleCancel = () => {
   resetForm();
   emit("cancel");
-}
-
-function resetForm() {
-  form.id = "";
-  form.name = "";
-  form.birthYear = null;
-  form.nationality = "";
-}
+};
 </script>
 
 <style scoped>
-.author-form {
-  max-width: 900px;
-  margin: 1.5rem auto;
-  padding: 2rem;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, .1);
-}
-
-h2 {
-  font-size: 1.8rem;
-  font-weight: 700;
-  margin-bottom: 1.5rem;
-  text-align: center;
-  color: var(--primary-color, #174a9e);
-}
-
-form {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-label {
-  font-weight: 600;
-  margin-bottom: .5rem;
-  color: var(--text-color, #444);
-}
-
-input {
-  padding: .75rem 1rem;
-  border: 1px solid var(--border-color, #ccc);
-  border-radius: 8px;
-  background: var(--secondary-color, #fafafa);
-  transition: all .3s;
-}
-
-input:focus {
-  border-color: var(--primary-color, #4a90e2);
-  background: white;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(23, 74, 158, .2);
-}
-
-.form-actions {
-  grid-column: 1 / -1;
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-  margin-top: .5rem;
-}
-
-button {
-  padding: .9rem 2rem;
-  font-weight: bold;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: .2s;
-}
-
-button[type="submit"] {
-  background: var(--primary-color, #4a90e2);
-  color: #fff;
-}
-
-button[type="submit"]:disabled {
-  background: #b0c4de;
-  cursor: not-allowed;
-}
+.author-form-container { padding:20px; border:1px solid #ccc; border-radius:8px; max-width:500px; margin:0 auto 20px; }
+.form-group { margin-bottom:15px; }
+label { display:block; font-weight:bold; margin-bottom:5px; }
+input { width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; }
+.form-actions { display:flex; justify-content:flex-end; gap:10px; }
+.btn { padding:8px 16px; border:none; border-radius:4px; cursor:pointer; font-weight:bold; }
+.save-btn { background-color:#4CAF50; color:white; }
+.cancel-btn { background-color:#f44336; color:white; }
 </style>

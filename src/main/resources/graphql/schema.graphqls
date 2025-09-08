@@ -46,6 +46,28 @@ input BookSearchInput {
     maxQuantity: Int
 }
 
+input RegisterInput {
+    username: String!
+    password: String!
+    role: String!
+}
+
+input LoginInput {
+    username: String!
+    password: String!
+}
+
+type AuthPayload {
+    token: String!
+}
+enum Role {
+    ADMIN
+    STAFF
+    READER
+}
+
+
+
 ## =====================================
 ## CÁC TRUY VẤN (QUERIES)
 ## =====================================
@@ -71,6 +93,9 @@ type Mutation {
     addBook(authorId: ID!, input: BookInput!): Book!
     updateBook(id: ID!, authorId: ID, input: BookInput!): Book!
     deleteBook(id: ID!): Boolean!
+
+    register(input: RegisterInput!): Boolean!
+    login(input: LoginInput!): AuthPayload!
 }
 type AuthorPage {
     content: [Author!]!

@@ -1,272 +1,250 @@
 <template>
   <div class="app">
-    <!-- Navbar -->
-    <nav class="navbar">
-
-      <button
-          class="nav-link"
-          :class="{ active: currentTab === 'books' }"
-          @click="currentTab = 'books'"
-      >
-        📚 Quản lý Sách
-      </button>
-      <button
-          class="nav-link"
-          :class="{ active: currentTab === 'authors' }"
-          @click="currentTab = 'authors'"
-      >
-        ✍️ Quản lý Tác giả
-      </button>
-
-    </nav>
-
-    <!-- BOOKS -->
-    <div v-if="currentTab === 'books'" class="content">
-      <h1>📚 Quản lý Sách</h1>
-      <p v-if="loadingBooks">⏳ Đang tải...</p>
-      <p v-if="errorBooks">❌ Lỗi: {{ errorBooks.message }}</p>
-
-      <BookForm
-          :editingBook="editingBook"
-          @saved="handleBookSaved"
-          @cancel="editingBook = null"
-      />
-      <BookList
-          :books="books"
-          @deleted="fetchBooks"
-          @edit="editingBook = $event"
-      />
-
-      <!-- Popup search -->
-      <button @click="showBookSearch = true">🔍 Tìm kiếm Sách</button>
-      <BookSearch
-          :visible="showBookSearch"
-          @close="showBookSearch = false"
-          @searched="books = $event"
-          @selected="handleBookSelected"
-      />
+    <!-- Login -->
+    <div v-if="!isAuthenticated" class="login-container">
+      <h2>🔑 Đăng nhập</h2>
+      <form @submit.prevent="doLogin">
+        <input v-model="username" type="text" placeholder="Tên đăng nhập" required />
+        <input v-model="password" type="password" placeholder="Mật khẩu" required />
+        <button type="submit" :disabled="loading">Đăng nhập</button>
+      </form>
+      <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
     </div>
 
+    <!-- Dashboard -->
+    <div v-else>
+      <nav class="navbar">
+        <button class="nav-link" :class="{ active: currentTab==='books' }" @click="currentTab='books'">📚 Quản lý Sách</button>
+        <button class="nav-link" :class="{ active: currentTab==='authors' }" @click="currentTab='authors'">✍️ Quản lý Tác giả</button>
+        <button class="nav-link logout" @click="logout">🚪 Đăng xuất</button>
+      </nav>
 
-    <!-- AUTHORS -->
-    <div v-else class="content">
-      <h1>✍️ Quản lý Tác giả</h1>
-      <p v-if="loadingAuthors">⏳ Đang tải...</p>
-      <p v-if="errorAuthors">❌ Lỗi: {{ errorAuthors.message }}</p>
+      <!-- Books Tab -->
+      <div v-if="currentTab==='books'" class="content">
+        <button @click="showBookSearch = true">🔍 Tìm kiếm Sách</button>
 
-      <AuthorForm
-          :editingAuthor="editingAuthor"
-          @saved="handleAuthorSaved"
-          @cancel="editingAuthor = null"
-      />
-      <AuthorList
-          :authors="authors"
-          @deleted="fetchAuthors"
-          @edit="editingAuthor = $event"
-      />
+        <BookSearch
+            :visible="showBookSearch"
+            @close="showBookSearch = false"
+            @searched="booksResult = $event"
+            @selected="handleBookSelected"
+        />
 
-      <!-- Popup search -->
-      <button @click="showAuthorSearch = true">🔍 Tìm kiếm Tác giả</button>
-      <AuthorSearch
-          :visible="showAuthorSearch"
-          @close="showAuthorSearch = false"
-          @searched="authors = $event"
-          @selected="handleAuthorSelected"
-      />
+        <button class="btn add-btn" @click="onAddBook">✨ Thêm Sách</button>
+        <BookForm
+            v-if="showBookForm"
+            :editingBook="editingBook"
+            @saved="onBookSaved"
+            @cancel="onBookCancel"
+        />
+        <BookList
+            :books="booksResult || []"
+            @edit="onEditBook"
+            @deleted="refetchBooks"
+        />
+      </div>
+
+      <!-- Authors Tab -->
+      <div v-else class="content">
+        <button @click="showAuthorSearch = true">🔍 Tìm kiếm Tác giả</button>
+
+        <AuthorSearchPopup
+            :visible="showAuthorSearch"
+            @close="showAuthorSearch = false"
+            @searched="authorsResult = $event"
+            @selected="handleAuthorSelected"
+        />
+
+        <button class="btn add-btn" @click="onAddAuthor">✨ Thêm Tác giả</button>
+        <AuthorForm
+            v-if="showAuthorForm"
+            :editingAuthor="editingAuthor"
+            @saved="onAuthorSaved"
+            @cancel="onAuthorCancel"
+        />
+        <AuthorList
+            :authors="authorsResult || []"
+            @edit="onEditAuthor"
+            @deleted="refetchAuthors"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
-import { useQuery, provideApolloClient } from "@vue/apollo-composable";
-import apolloClient from "./apollo";
+import { ref } from "vue";
+import { useMutation, useQuery } from "@vue/apollo-composable";
+import { LOGIN_MUTATION, GET_ALL_BOOKS, GET_ALL_AUTHORS } from "./services/queries";
 
-// Components
-import BookList from "./components/BookList.vue";
 import BookForm from "./components/BookForm.vue";
-import AuthorList from "./components/AuthorList.vue";
-import AuthorForm from "./components/AuthorForm.vue";
-import AuthorSearch from "./components/AuthorSearchPopup.vue";
-
-// GraphQL
-import { GET_ALL_BOOKS, GET_ALL_AUTHORS } from "./services/queries.ts";
+import BookList from "./components/BookList.vue";
 import BookSearch from "./components/BookSearch.vue";
+import AuthorForm from "./components/AuthorForm.vue";
+import AuthorList from "./components/AuthorList.vue";
+import AuthorSearchPopup from "./components/AuthorSearchPopup.vue";
 
-/* ---------- Types ---------- */
-interface Author {
-  id: string;
-  name: string;
-  birthYear?: number | null;
-  nationality?: string | null;
+import type { BookInput } from "./components/BookForm.vue";
+import type { Author } from "./components/AuthorForm.vue";
+
+// --- Auth ---
+const isAuthenticated = ref(!!localStorage.getItem("jwtToken"));
+const username = ref("");
+const password = ref("");
+const errorMsg = ref("");
+const loading = ref(false);
+const { mutate: login } = useMutation(LOGIN_MUTATION);
+
+async function doLogin() {
+  loading.value = true;
+  errorMsg.value = "";
+  try {
+    const result = await login({ input: { username: username.value, password: password.value } });
+    const token = result?.data?.login?.token;
+    if (!token) throw new Error("Không nhận được token");
+
+    localStorage.setItem("jwtToken", token);
+    isAuthenticated.value = true;
+  } catch (err: any) {
+    errorMsg.value = "Sai tài khoản hoặc mật khẩu";
+    console.error(err);
+  } finally {
+    loading.value = false;
+  }
 }
 
-interface Book {
-  id: string;
-  title: string;
-  publishedYear: number;
-  price: number;
-  quantity: number;
-  author?: Author;
+function logout() {
+  localStorage.removeItem("jwtToken");
+  isAuthenticated.value = false;
 }
 
-// Setup Apollo
-provideApolloClient(apolloClient);
-
-// State chung
+// --- Tabs ---
 const currentTab = ref<"books" | "authors">("books");
-const showAuthorSearch = ref(false);
 
-/* ---------- BOOK ---------- */
-const books = ref<Book[]>([]);
-const editingBook = ref<Book | null>(null);
+// --- Books State ---
+const booksResult = ref<BookInput[] | null>(null);
+const editingBook = ref<BookInput | null>(null);
+const showBookForm = ref(false);
 const showBookSearch = ref(false);
 
-// Khi chọn từ popup search Book
-const handleBookSelected = (book: Book) => {
+
+const { refetch: refetchBooks } = useQuery(GET_ALL_BOOKS, {}, { enabled: false });
+
+function handleBookSelected(book: BookInput) {
   editingBook.value = book;
   showBookSearch.value = false;
-};
+}
 
-
-const {
-  result: bookResult,
-  loading: loadingBooks,
-  error: errorBooks,
-  refetch: refetchBooks,
-} = useQuery<{ getAllBooks: Book[] }>(GET_ALL_BOOKS);
-
-watch(bookResult, (val) => {
-  books.value = val?.getAllBooks || [];
-});
-
-const fetchBooks = () => refetchBooks();
-const handleBookSaved = () => {
-  fetchBooks();
+function onAddBook() {
   editingBook.value = null;
-};
+  showBookForm.value = true;
+}
 
-/* ---------- AUTHOR ---------- */
-const authors = ref<Author[]>([]);
+function onEditBook(book: BookInput) {
+  editingBook.value = book;
+  showBookForm.value = true;
+}
+
+function onBookSaved() {
+  showBookForm.value = false;
+  editingBook.value = null;
+  refetchBooks();
+}
+
+function onBookCancel() {
+  showBookForm.value = false;
+  editingBook.value = null;
+}
+
+// --- Authors State ---
+const authorsResult = ref<Author[] | null>(null);
 const editingAuthor = ref<Author | null>(null);
+const showAuthorForm = ref(false);
+const showAuthorSearch = ref(false);
 
-const {
-  result: authorResult,
-  loading: loadingAuthors,
-  error: errorAuthors,
-  refetch: refetchAuthors,
-} = useQuery<{ getAllAuthors: Author[] }>(GET_ALL_AUTHORS);
+const { refetch: refetchAuthors } = useQuery(GET_ALL_AUTHORS, {}, { enabled: false });
 
-watch(authorResult, (val) => {
-  authors.value = val?.getAllAuthors || [];
-});
-
-const fetchAuthors = () => refetchAuthors();
-const handleAuthorSaved = () => {
-  fetchAuthors();
-  editingAuthor.value = null;
-};
-
-// Khi chọn từ popup search
-const handleAuthorSelected = (author: Author) => {
+function handleAuthorSelected(author: Author) {
   editingAuthor.value = author;
   showAuthorSearch.value = false;
-};
+}
+
+function onAddAuthor() {
+  editingAuthor.value = null;
+  showAuthorForm.value = true;
+}
+
+function onEditAuthor(author: Author) {
+  editingAuthor.value = author;
+  showAuthorForm.value = true;
+}
+
+function onAuthorSaved() {
+  showAuthorForm.value = false;
+  editingAuthor.value = null;
+  refetchAuthors();
+}
+
+function onAuthorCancel() {
+  showAuthorForm.value = false;
+  editingAuthor.value = null;
+}
 </script>
 
 <style scoped>
-:root {
-  --primary-color: #795548; /* Nâu cà phê */
-  --secondary-color: #f5f5f5; /* Xám nhạt */
-  --text-color: #4e342e; /* Nâu đen đậm */
-  --hover-bg-color: #efebe9; /* Kem nhạt khi hover */
-  --active-bg-color: #5d4037; /* Nâu đậm hơn khi active */
-  --border-color: #d7ccc8; /* Màu border xám nâu */
-  --border-radius: 10px;
-  --box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+/* ------------------- Login ------------------- */
+.login-container {
+  max-width: 400px;
+  margin: 100px auto;
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  text-align: center;
 }
-
-.app {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  color: var(--text-color);
-  background-color: #f7f3f1;
-  min-height: 100vh;
-  padding: 3rem;
-  box-sizing: border-box;
+.login-container input {
+  display: block;
+  width: 100%;
+  margin: 10px 0;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
 }
+.login-container button {
+  width: 100%;
+  padding: 10px;
+  background: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.login-container button:disabled {
+  background: #aaa;
+}
+.error { color: red; margin-top: 10px; }
 
+/* ------------------- Navbar ------------------- */
 .navbar {
   display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  padding: 1.5rem;
-  background: white;
-  border-radius: var(--border-radius);
-  box-shadow: var(--box-shadow);
-  margin-bottom: 2.5rem;
+  gap: 10px;
+  background: #f7f7f7;
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
 }
+.nav-link { background: none; border: none; padding: 10px 15px; cursor: pointer; }
+.nav-link.active { font-weight: bold; border-bottom: 2px solid #4a90e2; }
+.logout { margin-left: auto; color: red; }
 
-.nav-link {
-  background: none;
-  border: none;
-  font-weight: 600;
-  font-size: 1.1rem;
-  padding: 0.9rem 1.8rem;
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.nav-link:hover {
-  color: var(--primary-color);
-}
-
-.nav-link.active {
+/* ------------------- Content ------------------- */
+.content { padding: 20px; }
+.add-btn {
+  background-color: #4CAF50;
   color: white;
-  background: var(--primary-color);
-  box-shadow: 0 4px 10px rgba(121, 85, 72, 0.4);
-}
-
-.content {
-  max-width: 950px;
-  margin: 0 auto;
-  padding: 2.5rem;
-  background: white;
-  border-radius: var(--border-radius);
-  box-shadow: var(--box-shadow);
-}
-
-h1 {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--primary-color);
-  margin-bottom: 2rem;
-  border-bottom: 3px solid var(--primary-color);
-  padding-bottom: 0.75rem;
-}
-
-button {
-  cursor: pointer;
-  padding: 0.9rem 1.8rem;
-  font-size: 1rem;
-  border-radius: var(--border-radius);
   border: none;
-  background-color: var(--primary-color);
-  color: white;
-  font-weight: 600;
-  transition: all 0.3s;
-  margin-top: 1.5rem;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-button:hover {
-  background-color: var(--active-bg-color);
-  transform: translateY(-2px);
-}
-
-button:disabled {
-  background-color: #d7ccc8;
-  cursor: not-allowed;
-  box-shadow: none;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  cursor: pointer;
 }
 </style>

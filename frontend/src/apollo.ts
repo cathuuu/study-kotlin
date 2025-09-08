@@ -1,15 +1,11 @@
-import { ApolloClient, InMemoryCache, HttpLink } from '@apollo/client/core';
+// src/apollo.ts
+import { ApolloClient, InMemoryCache, createHttpLink } from "@apollo/client/core"
 
-// Tạo link HTTP, trỏ về /graphql (sẽ proxy qua Vite config sang backend)
-const httpLink = new HttpLink({
-    uri: '/graphql',
-});
+const httpLink = createHttpLink({
+    uri: "http://localhost:8080/graphql", // đổi URI theo BE của bạn
+})
 
-// Khởi tạo Apollo Client
-const apolloClient = new ApolloClient({
-    link: httpLink,                // Nơi gửi request
-    cache: new InMemoryCache(),    // Cache để Apollo tự quản lý dữ liệu
-});
-
-// Export ra để dùng toàn cục
-export default apolloClient;
+export const apolloClient = new ApolloClient({
+    link: httpLink,
+    cache: new InMemoryCache(),
+})
