@@ -18,7 +18,7 @@ interface BookRepository: CommonRepository<BookEntity, Long>, BookRepositoryCust
     @Query(
         """
     SELECT b FROM BookEntity b 
-    WHERE (:title IS NULL OR LOWER(b.title) LIKE LOWER(CONCAT('%', :title, '%')))
+    WHERE (:title IS NULL OR LOWER(b.title) LIKE LOWER(:title))
       AND (:publishedYear IS NULL OR b.publishedYear = :publishedYear)
       AND (:minPrice IS NULL OR b.price >= :minPrice)
       AND (:maxPrice IS NULL OR b.price <= :maxPrice)

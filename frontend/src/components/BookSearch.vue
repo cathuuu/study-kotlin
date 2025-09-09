@@ -62,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, watch } from "vue";
+import { reactive, ref, watch } from "vue";
 import { useLazyQuery } from "@vue/apollo-composable";
 import { SEARCH_BOOKS } from "../services/queries.ts";
 
@@ -77,7 +77,7 @@ interface Book {
 }
 
 interface BookSearchInput {
-  title?: string | null;
+  title?: string;
   publishedYear?: number | null;
   minPrice?: number | null;
   maxPrice?: number | null;
@@ -103,40 +103,49 @@ const filter = reactive<BookSearchInput>({
 });
 const searched = ref(false);
 
-// ---- Tạo biến động bằng computed property ----
-const variables = computed(() => ({
-  filter: {
-    title: filter.title || undefined,
-    publishedYear: filter.publishedYear ?? undefined,
-    minPrice: filter.minPrice ?? null,
-    maxPrice: filter.maxPrice ?? null,
-  },
-}));
-
-// ---- Truy vấn với computed property ----
+// ---- Lazy Query ----
 const { load, loading, result: data, error } = useLazyQuery<
     { searchBooks: Book[] },
     { filter: BookSearchInput }
->(SEARCH_BOOKS, variables);
+>(SEARCH_BOOKS);
 
-// ---- Watcher để làm sạch form khi popup đóng ----
-watch(
-    () => props.visible,
-    (newVal) => {
-      if (newVal) {
-        searched.value = false;
-      } else {
-        resetFilter();
-      }
-    },
-);
+// ---- Watcher reset form ----
+watch(() => props.visible, (val) => {
+  if (!val) resetFilter();
+  else searched.value = false;
+});
 
 // ---- Methods ----
 async function handleSearch() {
   searched.value = true;
-  await load();
-  if (!loading.value && !error.value) {
-    emit("searched", data.value?.searchBooks || []);
+
+  // Chỉ truyền những field có giá trị, tránh undefined
+  const variables: { filter: BookSearchInput } = { filter: {} };
+  if (filter.title?.trim()) variables.filter.title = filter.title.trim();
+  if (filter.publishedYear != null && !isNaN(filter.publishedYear))
+    variables.filter.publishedYear = Number(filter.publishedYear);
+  if (filter.minPrice != null && !isNaN(filter.minPrice))
+    variables.filter.minPrice = Number(filter.minPrice);
+  if (filter.maxPrice != null && !isNaN(filter.maxPrice))
+    variables.filter.maxPrice = Number(filter.maxPrice);
+
+  try {
+    await load(null, variables);
+
+    // Map lại để chắc chắn type hợp lệ
+    const books = (data.value?.searchBooks || []).map((book) => ({
+      id: book.id,
+      title: book.title,
+      publishedYear: book.publishedYear ?? null,
+      price: book.price ?? null,
+      quantity: book.quantity ?? null,
+      authorId: book.authorId,
+    }));
+
+    emit("searched", books);
+    resetFilter();
+  } catch (err) {
+    console.error(err);
   }
 }
 
@@ -146,19 +155,18 @@ function selectBook(book: Book) {
 }
 
 function resetFilter() {
-  Object.assign(filter, {
-    title: "",
-    publishedYear: null,
-    minPrice: null,
-    maxPrice: null,
-  });
-  searched.value = false;
+  filter.title = "";
+  filter.publishedYear = null;
+  filter.minPrice = null;
+  filter.maxPrice = null;
 }
 
 function close() {
   emit("close");
 }
 </script>
+
+
 <style scoped>
 .book-search {
   position: fixed;

@@ -46,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, watch } from "vue";
+import { reactive, ref, watch } from "vue";
 import { useLazyQuery } from "@vue/apollo-composable";
 import { SEARCH_AUTHOR } from "../services/queries.ts";
 
@@ -65,8 +65,8 @@ interface AuthorSearchInput {
 }
 
 // ---- Props & Emits ----
-defineProps({
-  visible: Boolean
+const props = defineProps({
+  visible: Boolean,
 });
 const emit = defineEmits<{
   (e: "close"): void;
@@ -82,35 +82,56 @@ const filter = reactive<AuthorSearchInput>({
 });
 const searched = ref(false);
 
-// ---- Tạo biến động bằng computed property ----
-const variables = computed(() => ({
-  filter: {
-    keyword: filter.keyword || undefined,
-    birthYear: filter.birthYear ?? undefined,
-    nationality: filter.nationality || undefined,
-  },
-}));
-
-// ---- Truy vấn với computed property ----
+// ---- Lazy Query ----
 const { load, loading, result: data, error } = useLazyQuery<
     { searchAuthors: Author[] },
     { filter: AuthorSearchInput }
->(SEARCH_AUTHOR, variables); // Sửa: Truyền biến `variables` vào đây
+>(SEARCH_AUTHOR);
 
-// ---- Watcher để emit kết quả ----
-watch(data, (val) => {
-  emit("searched", val?.searchAuthors || []);
-});
+// ---- Watcher để reset form khi popup đóng ----
+watch(
+    () => props.visible,
+    (newVal) => {
+      if (!newVal) resetFilter();
+      else searched.value = false;
+    }
+);
 
 // ---- Methods ----
 async function handleSearch() {
   searched.value = true;
-  await load(); // Sửa: Gọi load mà không cần truyền biến nữa
+
+  // Chuẩn hóa variables
+  const variables: { filter: AuthorSearchInput } = {
+    filter: {
+      keyword: filter.keyword?.trim() || undefined,
+      birthYear: filter.birthYear != null ? Number(filter.birthYear) : undefined,
+      nationality: filter.nationality?.trim() || undefined,
+    }
+  };
+
+  try {
+    await load(null, variables);
+
+    // Emit kết quả tìm kiếm
+    emit("searched", data.value?.searchAuthors || []);
+
+    // Reset filter ngay sau khi tìm xong
+    resetFilter();
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 function selectAuthor(author: Author) {
   emit("selected", author);
   close();
+}
+
+function resetFilter() {
+  filter.keyword = "";
+  filter.birthYear = null;
+  filter.nationality = "";
 }
 
 function close() {

@@ -80,7 +80,7 @@ class BookController(
     @QueryMapping
     fun searchBooks(@Argument filter: BookSearchInputDto?): List<BookEntity> {
         return bookRepo.searchBooks(
-            title = filter?.title,
+            title = "%${filter?.title?:""}%",
             publishedYear = filter?.publishedYear,
             minPrice = filter?.minPrice,
             maxPrice = filter?.maxPrice,
