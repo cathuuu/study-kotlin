@@ -194,7 +194,8 @@ export const SEARCH_AUTHOR_PAGE_NATIVE = gql`
 export const LOGIN_MUTATION = gql`
     mutation Login($input: LoginInput!) {
         login(input: $input) {
-            token
+            accessToken
+            refreshToken
         }
     }
 `;

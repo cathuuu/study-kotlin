@@ -7,7 +7,8 @@ import { LOGIN_MUTATION } from "../../services/queries";
 // ====== Types ======
 interface LoginResponse {
   login: {
-    token: string;
+    accessToken: String;
+    refreshToken: String;
   };
 }
 

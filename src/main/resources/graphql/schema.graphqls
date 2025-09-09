@@ -58,12 +58,20 @@ input LoginInput {
 }
 
 type AuthPayload {
-    token: String!
+    accessToken: String!
+    refreshToken: String!
 }
+
 enum Role {
     ADMIN
     STAFF
     READER
+}
+
+
+type TokenResponse {
+    accessToken: String!
+    refreshToken: String!
 }
 
 
@@ -96,6 +104,7 @@ type Mutation {
 
     register(input: RegisterInput!): Boolean!
     login(input: LoginInput!): AuthPayload!
+    refreshToken(refreshToken: String!): TokenResponse!
 }
 type AuthorPage {
     content: [Author!]!

@@ -100,10 +100,11 @@ async function doLogin() {
   errorMsg.value = "";
   try {
     const result = await login({ input: { username: username.value, password: password.value } });
-    const token = result?.data?.login?.token;
-    if (!token) throw new Error("Không nhận được token");
+    const accesstoken = result?.data?.login?.accessToken;
 
-    localStorage.setItem("jwtToken", token);
+    if (!accesstoken) throw new Error("Không nhận được token");
+
+    localStorage.setItem("jwtToken", accesstoken);
     isAuthenticated.value = true;
   } catch (err: any) {
     errorMsg.value = "Sai tài khoản hoặc mật khẩu";
