@@ -199,3 +199,18 @@ export const LOGIN_MUTATION = gql`
         }
     }
 `;
+export const REGISTER_MUTATION = gql`
+    mutation Register($input: RegisterInput!) {
+        register(input: $input)
+    }
+`;
+export const SEARCH_BORROW_QUERY =gql`
+    query GetAllBorrow {
+    getAllBorrow {
+        id
+        borrowDate
+        returnDate
+        status
+    }
+}`
+export const SEARCH

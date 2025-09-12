@@ -13,14 +13,12 @@ class UserDetailsServiceImpl(
 
     override fun loadUserByUsername(username: String): UserDetails {
         val user = userRepository.findByUsername(username)
-            ?: throw UsernameNotFoundException("User not found: $username")
-
-        val roleName = user.role?.name ?: "USER"
+        val roleName = user.role.name // Role.USER -> "USER"
 
         return org.springframework.security.core.userdetails.User
-            .withUsername(user.username ?: throw UsernameNotFoundException("Username is null"))
-            .password(user.password ?: throw UsernameNotFoundException("Password is null"))
-            .roles(roleName) // sẽ thành ROLE_USER, ROLE_ADMIN...
+            .withUsername(user.username)
+            .password(user.password)
+            .roles(roleName) // sẽ tự động thêm "ROLE_" prefix
             .build()
     }
 }

@@ -1,4 +1,5 @@
 plugins {
+	kotlin("kapt") version "1.9.25"
 	kotlin("jvm") version "1.9.25"
 	kotlin("plugin.spring") version "1.9.25"
 	id("org.springframework.boot") version "3.5.5"
@@ -51,7 +52,8 @@ dependencies {
 		testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
 		testImplementation("org.springframework.graphql:spring-graphql-test")
 		testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-
+	implementation("org.mapstruct:mapstruct:1.6.3")
+	kapt("org.mapstruct:mapstruct-processor:1.6.3")
 }
 
 kotlin {

@@ -14,6 +14,6 @@ data class UserEntity(
     @Column(nullable = false)
     var password: String? = null,
     @Enumerated(EnumType.STRING)
-    var role: Role?
+    var role: Role = Role.READER
 )
 

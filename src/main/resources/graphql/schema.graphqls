@@ -2,6 +2,18 @@
 ## CÁC LOẠI DỮ LIỆU
 ## =====================================
 
+enum Status {
+    BORROWED
+    RETURNED
+    LATE
+}
+
+enum Role {
+    ADMIN
+    STAFF
+    READER
+}
+
 type Author {
     id: ID!
     name: String!
@@ -37,6 +49,7 @@ input BookInput {
     price: Float
     quantity: Int
 }
+
 input BookSearchInput {
     title: String
     publishedYear: Int
@@ -46,10 +59,17 @@ input BookSearchInput {
     maxQuantity: Int
 }
 
+type User {
+    id: ID!
+    name: String!
+    email: String!
+    borrowings: [Borrowing!]!
+}
+
 input RegisterInput {
     username: String!
     password: String!
-    role: String!
+    role: Role!
 }
 
 input LoginInput {
@@ -62,19 +82,34 @@ type AuthPayload {
     refreshToken: String!
 }
 
-enum Role {
-    ADMIN
-    STAFF
-    READER
-}
-
-
 type TokenResponse {
     accessToken: String!
     refreshToken: String!
 }
 
+input BorrowInputDto {
+    borrowDate: String
+    returnDate: String
+    status: Status!
+}
 
+type Borrowing {
+    id: ID!
+    borrowDate: String
+    returnDate: String
+    status: Status
+    user: User
+    book: Book
+}
+
+type BorrowingEntity {
+    id: ID!
+    borrowDate: String
+    returnDate: String
+    status: Status
+    user: User
+    book: Book
+}
 
 ## =====================================
 ## CÁC TRUY VẤN (QUERIES)
@@ -84,9 +119,13 @@ type Query {
     getAllAuthors: [Author!]!
     getAuthorById(id: ID!): Author
     searchAuthors(filter: AuthorSearchInput): [Author!]!
+
     getAllBooks: [Book!]!
     getBookById(id: ID!): Book
     searchBooks(filter: BookSearchInput): [Book!]!
+
+    getAllBorrow: [Borrowing!]!
+    getBorrowBookByUserId(userId: ID!): [BorrowingEntity!]!
 }
 
 ## =====================================
@@ -102,10 +141,15 @@ type Mutation {
     updateBook(id: ID!, authorId: ID, input: BookInput!): Book!
     deleteBook(id: ID!): Boolean!
 
+    createBorrow(userId: ID!, bookId: ID!, input: BorrowInputDto!): Borrowing!
+    updateBorrow(id: ID!, userId: ID!, bookId: ID!, input: BorrowInputDto!): Borrowing!
+    deleteBorrow(id: ID!): Boolean!
+
     register(input: RegisterInput!): Boolean!
     login(input: LoginInput!): AuthPayload!
     refreshToken(refreshToken: String!): TokenResponse!
 }
+
 type AuthorPage {
     content: [Author!]!
     totalElements: Int!
@@ -121,6 +165,7 @@ type BookPage {
     number: Int!
     size: Int!
 }
+
 extend type Query {
     getAuthorsByPage(filter: AuthorSearchInput, page: Int!, size: Int!): AuthorPage!
     getBooksByPage(filter: BookSearchInput, page: Int!, size: Int!): BookPage!

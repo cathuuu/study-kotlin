@@ -50,7 +50,7 @@ const handleLogin = async () => {
 
     console.log("✅ Login result:", res);
 
-    const token = res?.data?.login?.token;
+    const token = res?.data?.login?.accessToken.toString();
     if (token) {
       localStorage.setItem("token", token);
       router.push("/");

@@ -53,6 +53,17 @@ class JwtUtil {
         return extractedUsername == username && !isTokenExpired(token)
     }
 
+    fun validateRefreshToken(token: String): String? {
+        return try {
+            val claims = Jwts.parser()
+                .setSigningKey(secretKey)
+                .parseClaimsJws(token)
+                .body
+            claims.subject // trả về username
+        } catch (ex: Exception) {
+            null // token không hợp lệ hoặc hết hạn
+        }
+    }
 
     private fun isTokenExpired(token: String): Boolean =
         extractAllClaims(token).expiration.before(Date())
